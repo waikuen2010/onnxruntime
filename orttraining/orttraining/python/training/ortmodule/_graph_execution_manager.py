@@ -71,7 +71,7 @@ class _SkipCheck(IntFlag):
 
 
 class GraphExecutionManager(GraphExecutionInterface):
-    def __init__(self, module, debug_options: DebugOptions, fallback_manager: _FallbackManager):
+    def __init__(self, module, debug_options: DebugOptions, fallback_manager: _FallbackManager, custom_op_set):
         """Manages construction and execution of ONNX graphs"""
 
         super(GraphExecutionManager, self).__init__(module._original_module)
@@ -168,6 +168,7 @@ class GraphExecutionManager(GraphExecutionInterface):
         # Flag to re-export the model due to attribute change on original module.
         # Re-export will be avoided if _skip_check is enabled.
         self._original_model_has_changed = False
+        self._custom_op_set = custom_op_set
 
     def _get_torch_gpu_allocator_function_addresses(self):
         if self._use_external_gpu_allocator and torch.cuda.is_available():
@@ -365,7 +366,8 @@ class GraphExecutionManager(GraphExecutionInterface):
                                   dynamic_axes=self._input_info.dynamic_axes,
                                   verbose=self._debug_options.logging.log_level < LogLevel.WARNING,
                                   export_params=False,
-                                  keep_initializers_as_inputs=True)
+                                  keep_initializers_as_inputs=True,
+                                  export_modules_as_functions=self._custom_op_set)
         except Exception as e:
             raise wrap_exception(ORTModuleONNXModelException,
                                  RuntimeError(f'There was an error while exporting the PyTorch model to ONNX: {e}'))
