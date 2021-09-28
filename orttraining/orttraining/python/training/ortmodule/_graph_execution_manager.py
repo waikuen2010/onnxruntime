@@ -169,7 +169,7 @@ class GraphExecutionManager(GraphExecutionInterface):
         # Re-export will be avoided if _skip_check is enabled.
         self._original_model_has_changed = False
         self._custom_ops = custom_ops
-        self._custom_op_names = [op.__name__ for op in custom_ops]
+        self._custom_op_names = None if custom_ops is None else [op.__name__ for op in custom_ops]
 
     def _get_torch_gpu_allocator_function_addresses(self):
         if self._use_external_gpu_allocator and torch.cuda.is_available():
@@ -373,10 +373,10 @@ class GraphExecutionManager(GraphExecutionInterface):
             raise wrap_exception(ORTModuleONNXModelException,
                                  RuntimeError(f'There was an error while exporting the PyTorch model to ONNX: {e}'))
         exported_model = onnx.load_model_from_string(f.getvalue())
-
-        for function in exported_model.functions:
-            if function.name in self._custom_op_names:
-                exported_model.functions.remove(function)
+        if self._custom_op_names is not None:
+            for function in exported_model.functions:
+                if function.name in self._custom_op_names:
+                    exported_model.functions.remove(function)
 
         exported_model = _post_process_after_export(exported_model,
                                                     self._enable_custom_autograd_function,
