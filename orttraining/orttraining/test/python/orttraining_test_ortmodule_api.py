@@ -924,7 +924,6 @@ def test_export_correctness_pool2d(pool_type, stride):
             super(NeuralNetPool2d, self).__init__()
             self.conv = torch.nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
             self.pool_type = pool_type
-            
 
         def forward(self, input):
             x = self.conv(input)
@@ -1016,8 +1015,8 @@ def test_gradient_correctness_argmax_diagonal(offset, dim1, dim2):
         _test_helpers.assert_values_are_close(ort_input.grad, pt_input.grad)
 
 # Since multinomial is a generator function, we do not have to test for gradient
-# Two consecutive calls on the torch.multinomail on a probability distribution with more 
-# than one index with non-zero probability(eg, [0, 10, 3, 0]) will not result in 
+# Two consecutive calls on the torch.multinomail on a probability distribution with more
+# than one index with non-zero probability(eg, [0, 10, 3, 0]) will not result in
 # the same output. Thus we reset the seed before each call to the op torch.multinomial.
 @pytest.mark.parametrize("input_shape", ([5], [2,5]))
 @pytest.mark.parametrize("num_samples, replacement", ((1, False), (2, True)))
@@ -1046,8 +1045,8 @@ def test_aten_multinomial(input_shape, num_samples, replacement):
     ort_input = copy.deepcopy(pt_input)
     pt_prediction = run_step(pt_model, pt_input)
     ort_prediction = run_step(ort_model, ort_input)
-    # run the ort prediction again since the first call involves export 
-    # and run step, which means the torch.multinomial is called twice in a row without 
+    # run the ort prediction again since the first call involves export
+    # and run step, which means the torch.multinomial is called twice in a row without
     # resetting the generator in between, which will result in a different output
     ort_prediction = run_step(ort_model, ort_input)
 
@@ -1806,7 +1805,7 @@ def test_exception_raised_for_custom_class_return_value_module(device):
         with pytest.raises(_fallback.ORTModuleIOError) as runtime_error:
             ort_model(x, y, z)
         assert 'ORTModule does not support the following model output type' in str(runtime_error.value)
-    
+
     del os.environ['ORTMODULE_SKIPCHECK_POLICY']
 
 def test_dynamic_axes_config():
@@ -2646,7 +2645,7 @@ def test_forward_dynamic_args():
             assert output is not None
         hash_args_size3 = hash(repr(model._torch_module._execution_manager(model._is_training())._input_info.schema))
         assert hash_args_size3 != hash_args_size2
-    
+
     del os.environ['ORTMODULE_SKIPCHECK_POLICY']
 
 
@@ -4175,3 +4174,27 @@ def test_sigmoid_grad():
         _test_helpers.assert_values_are_close(ort_prediction, pt_prediction)
         _test_helpers.assert_values_are_close(ort_x.grad, pt_x.grad)
         _test_helpers.assert_values_are_close(ort_loss, pt_loss)
+
+@pytest.mark.parametrize("opset_version", [12, 13])
+def test_opset_version_change(opset_version):
+    device = 'cuda'
+
+    N, D_in, H, D_out = 64, 784, 500, 10
+    x = torch.randn(N, D_in, device=device)
+    model = NeuralNetSinglePositionalArgument(D_in, H, D_out).to(device)
+
+    ort_model = ORTModule(model)
+
+    # Must import a namespace containing ONNX_OPSET_VERSION, not ONNX_OPSET_VERSION directly
+    from onnxruntime.training import ortmodule
+    ortmodule.ONNX_OPSET_VERSION=opset_version
+
+    # Make sure model runs without any exception
+    prediction = ort_model(x)
+    assert prediction is not None
+    prediction = prediction.sum()
+    prediction.backward()
+
+    # Check opset version on ONNX model
+    exported_model = ort_model._torch_module._execution_manager(ort_model._is_training())._onnx_models.exported_model
+    assert exported_model.opset_import[0].version == opset_version
