@@ -6,3 +6,4 @@ import {registerBackend} from 'onnxruntime-common';
 import {onnxruntimeBackend} from './backend';
 
 registerBackend('cpu', onnxruntimeBackend, 1);
+registerBackend('cuda', onnxruntimeBackend, 2);

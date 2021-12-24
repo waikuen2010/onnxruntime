@@ -23,6 +23,9 @@ void ParseExecutionProviders(const Napi::Array epList, Ort::SessionOptions &sess
   for (uint32_t i = 0; i < epList.Length(); i++) {
     Napi::Value epValue = epList[i];
     std::string name;
+    bool use_arena;
+    int device_id;
+
     if (epValue.IsString()) {
       name = epValue.As<Napi::String>().Utf8Value();
     } else if (!epValue.IsObject() || epValue.IsNull() || !epValue.As<Napi::Object>().Has("name") ||
@@ -31,13 +34,27 @@ void ParseExecutionProviders(const Napi::Array epList, Ort::SessionOptions &sess
                                "] must be either a string or an object with property 'name'.");
     } else {
       name = epValue.As<Napi::Object>().Get("name").As<Napi::String>().Utf8Value();
+      if (epValue.As<Napi::Object>().Has("useArena")) {
+        use_arena = epValue.As<Napi::Object>().Get("useArena").As<Napi::Boolean>().Value();
+      }
+      if (epValue.As<Napi::Object>().Has("deviceId")) {
+        device_id = epValue.As<Napi::Object>().Get("deviceId").As<Napi::Number>().Int32Value();
+      }
     }
 
     // CPU execution provider
     if (name == "cpu") {
       // TODO: handling CPU EP options
+      if (use_arena) {
+        sessionOptions.EnableCpuMemArena();
+      } else {
+        sessionOptions.DisableCpuMemArena();
+      }
     } else if (name == "cuda") {
       // TODO: handling Cuda EP options
+      OrtCUDAProviderOptions cudaOptions = {};
+      cudaOptions.device_id = device_id;
+      sessionOptions.AppendExecutionProvider_CUDA(cudaOptions);
     } else {
       ORT_NAPI_THROW_ERROR(epList.Env(), "Invalid argument: sessionOptions.executionProviders[", i,
                            "] is unsupported: '", name, "'.");

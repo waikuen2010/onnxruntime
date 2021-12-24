@@ -94,6 +94,12 @@ elseif (UNIX)
     COMMAND ${CMAKE_COMMAND} -E copy
       ${ONNXRUNTIME_BUILD_DIR}/libonnxruntime.so.${ort_version}
       ${dist_folder}
+    COMMAND ${CMAKE_COMMAND} -E copy
+      ${ONNXRUNTIME_BUILD_DIR}/libonnxruntime_providers_cuda.so
+      ${dist_folder}
+    COMMAND ${CMAKE_COMMAND} -E copy
+      ${ONNXRUNTIME_BUILD_DIR}/libonnxruntime_providers_shared.so
+      ${dist_folder}
   )
 else()
   message(FATAL_ERROR "Platform not supported.")
